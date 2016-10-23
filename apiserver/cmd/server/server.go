@@ -1601,30 +1601,41 @@ func (s *Server) PutStack(w rest.ResponseWriter, r *rest.Request) {
 
 	for i := range newStack.Services {
 		stackService := &newStack.Services[i]
+		spec, err := s.etcd.GetServiceSpec(userId, stackService.Service)
+		if err != nil {
+			glog.Error(err)
+			rest.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
 
-		oldStackService := oldStack.GetStackService(stackService.Id)
-		if oldStackService == nil {
+		if s.useLoadBalancer() && spec.Access == api.AccessExternal {
+			oldStackService := oldStack.GetStackService(stackService.Id)
+			if oldStackService == nil {
 
-			// User added a new service
-			stackService.Id = fmt.Sprintf("%s-%s", sid, stackService.Service)
-			spec, _ := s.etcd.GetServiceSpec(userId, stackService.Service)
-			if spec != nil {
-				_, err := s.createKubernetesService(userId, &newStack, spec)
+				// User added a new service
+				stackService.Id = fmt.Sprintf("%s-%s", sid, stackService.Service)
+				if spec != nil {
+					_, err := s.createKubernetesService(userId, &newStack, spec)
+					if err != nil {
+						glog.Error(err)
+						rest.Error(w, err.Error(), http.StatusInternalServerError)
+						return
+					}
+				}
+			}
+
+			if oldStack.Secure != newStack.Secure {
+				// Need to delete and recreate the ingress rule
+
+				name := fmt.Sprintf("%s-%s", newStack.Id, spec.Key)
+				svc, err := s.kube.GetService(userId, name)
 				if err != nil {
 					glog.Error(err)
 					rest.Error(w, err.Error(), http.StatusInternalServerError)
 					return
 				}
-			}
-		}
 
-		if oldStack.Secure != newStack.Secure {
-			// Need to delete and recreate the ingress rule
-			spec, _ := s.etcd.GetServiceSpec(userId, stackService.Service)
-			name := fmt.Sprintf("%s-%s", newStack.Id, spec.Key)
-			svc, _ := s.kube.GetService(userId, name)
-			if s.useLoadBalancer() && spec.Access == api.AccessExternal {
-				err := s.createIngressRule(userId, svc, &newStack)
+				err = s.createIngressRule(userId, svc, &newStack)
 				if err != nil {
 					glog.Error(err)
 					rest.Error(w, err.Error(), http.StatusInternalServerError)
@@ -1634,7 +1645,6 @@ func (s *Server) PutStack(w rest.ResponseWriter, r *rest.Request) {
 		}
 
 		// User may have changed volume mounts
-		spec, _ := s.etcd.GetServiceSpec(userId, stackService.Service)
 		if spec != nil {
 			for _, mount := range spec.VolumeMounts {
 
