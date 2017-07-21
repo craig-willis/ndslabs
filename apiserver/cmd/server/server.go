@@ -34,6 +34,7 @@ import (
 var adminUser = "admin"
 var systemNamespace = "kube-system"
 var glusterPodName = "glfs-server-global"
+var devEnvironmentTag = "7"
 
 type Server struct {
 	Config          *config.Config
@@ -1558,8 +1559,8 @@ func (s *Server) PostStack(w rest.ResponseWriter, r *rest.Request) {
 					if stackService.VolumeMounts == nil {
 						stackService.VolumeMounts = map[string]string{}
 					}
-					volPath := fmt.Sprintf("AppData/%s", s.getAppDataDir(stackService.Id))
 
+					volPath := s.getVolPath(spec.Tags, stackService.Id)
 					stackService.VolumeMounts[volPath] = mount.MountPath
 				}
 			}
@@ -1710,7 +1711,7 @@ func (s *Server) PutStack(w rest.ResponseWriter, r *rest.Request) {
 					}
 
 					if len(fromPath) == 0 {
-						volPath := fmt.Sprintf("AppData/%s", s.getAppDataDir(stackService.Id))
+						volPath := s.getVolPath(spec.Tags, stackService.Id)
 						stackService.VolumeMounts[volPath] = mount.MountPath
 					}
 				}
@@ -1723,7 +1724,7 @@ func (s *Server) PutStack(w rest.ResponseWriter, r *rest.Request) {
 
 				if found == 0 {
 					// Create a new temporary folder
-					volPath := fmt.Sprintf("AppData/%s", s.getAppDataDir(stackService.Id))
+					volPath := s.getVolPath(spec.Tags, stackService.Id)
 					stackService.VolumeMounts[volPath] = mount.MountPath
 				}
 			}
@@ -3183,4 +3184,22 @@ func (s *Server) getAccountByEmail(email string) *api.Account {
 		}
 	}
 	return nil
+}
+
+// NDS-970
+func (s *Server) getVolPath(tags []string, ssid string) string {
+	volPath := "/"
+	if !contains(tags, devEnvironmentTag) {
+		volPath = fmt.Sprintf("AppData/%s", s.getAppDataDir(ssid))
+	}
+	return volPath
+}
+
+func contains(s []string, e string) bool {
+	for _, a := range s {
+		if a == e {
+			return true
+		}
+	}
+	return false
 }
