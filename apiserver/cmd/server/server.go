@@ -2162,7 +2162,7 @@ func (s *Server) startStack(userId string, stack *api.Stack) (*api.Stack, error)
 	}
 
 	// To overcome the 503 error on ingress, wait 5 seconds before returning the endpoint
-	time.Sleep(time.Second * 10)
+	time.Sleep(time.Second * 5)
 	stack, _ = s.getStackWithStatus(userId, sid)
 	stack.Status = "started"
 	for _, stackService := range stack.Services {
