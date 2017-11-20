@@ -308,6 +308,7 @@ func (s *Server) start(cfg *config.Config, adminPasswd string) {
 		rest.Put(s.prefix+"stacks/:sid", s.PutStack),
 		rest.Get(s.prefix+"stacks/:sid", s.GetStack),
 		rest.Delete(s.prefix+"stacks/:sid", s.DeleteStack),
+		rest.Get(s.prefix+"start", s.QuickstartStack),
 		rest.Get(s.prefix+"start/:sid", s.StartStack),
 		rest.Get(s.prefix+"stop/:sid", s.StopStack),
 		rest.Get(s.prefix+"logs/:ssid", s.GetLogs),
@@ -1512,22 +1513,32 @@ func (s *Server) GetStack(w rest.ResponseWriter, r *rest.Request) {
 func (s *Server) PostStack(w rest.ResponseWriter, r *rest.Request) {
 	userId := s.getUser(r)
 
-	stack := api.Stack{}
-	err := r.DecodeJsonPayload(&stack)
+	stack := &api.Stack{}
+	err := r.DecodeJsonPayload(stack)
 	if err != nil {
 		glog.Error(err)
 		rest.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
+	stack, err = s.addStack(userId, stack)
+	if err != nil {
+		glog.Error(err)
+		rest.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteJson(&stack)
+}
+
+func (s *Server) addStack(userId string, stack *api.Stack) (*api.Stack, error) {
+
 	glog.V(4).Infof("Adding stack %s %s\n", stack.Key, stack.Name)
 
-	_, err = s.etcd.GetServiceSpec(userId, stack.Key)
+	_, err := s.etcd.GetServiceSpec(userId, stack.Key)
 	if err != nil {
 		glog.V(4).Infof("Service %s not found for user %s\n", stack.Key, userId)
-
-		w.WriteHeader(http.StatusNotFound)
-		return
+		return nil, err
 	}
 
 	sid := s.kube.GenerateName(5)
@@ -1566,7 +1577,7 @@ func (s *Server) PostStack(w rest.ResponseWriter, r *rest.Request) {
 
 			// Start the Kubernetes service and ingress
 			if len(spec.Ports) > 0 {
-				_, err := s.createKubernetesService(userId, &stack, spec)
+				_, err := s.createKubernetesService(userId, stack, spec)
 				if err != nil {
 					glog.V(4).Infof("Failed to start service service %s-%s\n", stack.Id, spec.Key)
 					continue
@@ -1575,13 +1586,12 @@ func (s *Server) PostStack(w rest.ResponseWriter, r *rest.Request) {
 		}
 	}
 
-	err = s.etcd.PutStack(userId, stack.Id, &stack)
+	err = s.etcd.PutStack(userId, stack.Id, stack)
 	if err != nil {
 		glog.Error(err)
-		rest.Error(w, err.Error(), http.StatusInternalServerError)
-		return
+		return nil, err
 	}
-	w.WriteJson(&stack)
+	return stack, nil
 }
 
 // Create the Kubernetes service and ingress rules
@@ -2047,6 +2057,56 @@ func (s *Server) startController(userId string, serviceKey string, stack *api.St
 	} else {
 		return true, nil
 	}
+}
+
+func (s *Server) QuickstartStack(w rest.ResponseWriter, r *rest.Request) {
+	userId := s.getUser(r)
+	sid := r.Request.FormValue("key")
+
+	// TODO: Restrict to single-service specs
+
+	if !s.serviceExists(userId, sid) {
+		rest.Error(w, "No such service", http.StatusNotFound)
+		return
+	}
+
+	spec, err := s.etcd.GetServiceSpec(userId, sid)
+	if err != nil {
+		glog.Error(err)
+		rest.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	stack := &api.Stack{
+		Key:    sid,
+		Name:   spec.Label,
+		Secure: true,
+	}
+
+	// Add the default service
+	stack.Services = append(stack.Services, api.StackService{Service: sid})
+
+	/*
+		for _, config := range spec.Config {
+			if config.IsPassword {
+				stack.Services[0].Config[config.Name] = s.kube.RandomString(10)
+			}
+		}
+	*/
+
+	stack, err = s.addStack(userId, stack)
+	if err != nil {
+		rest.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	stack, err = s.startStack(userId, stack)
+	if err != nil {
+		rest.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.WriteJson(&stack)
+
 }
 
 func (s *Server) StartStack(w rest.ResponseWriter, r *rest.Request) {
