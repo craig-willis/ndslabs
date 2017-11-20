@@ -822,8 +822,8 @@ func (s *Server) VerifyAccount(w rest.ResponseWriter, r *rest.Request) {
 			rest.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
-
-		err = s.email.SendStatusEmail(account.Name, account.Namespace, account.EmailAddress, s.origin, true)
+		
+		err = s.email.SendStatusEmail(account.Name, account.Namespace, account.EmailAddress,  s.origin, account.NextURL, true)
 		if err != nil {
 			glog.Error(err)
 			rest.Error(w, err.Error(), http.StatusInternalServerError)
@@ -857,7 +857,8 @@ func (s *Server) ApproveAccount(w rest.ResponseWriter, r *rest.Request) {
 			rest.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
-		err = s.email.SendStatusEmail(account.Name, account.Namespace, account.EmailAddress, s.origin, true)
+
+		err = s.email.SendStatusEmail(account.Name, account.Namespace, account.EmailAddress,  s.origin, account.NextURL, true)
 		if err != nil {
 			glog.Error(err)
 			rest.Error(w, err.Error(), http.StatusInternalServerError)
@@ -888,7 +889,7 @@ func (s *Server) DenyAccount(w rest.ResponseWriter, r *rest.Request) {
 			rest.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
-		err = s.email.SendStatusEmail(account.Name, account.Namespace, account.EmailAddress, "", false)
+		err = s.email.SendStatusEmail(account.Name, account.Namespace, account.EmailAddress, "", "", false)
 		if err != nil {
 			glog.Error(err)
 			rest.Error(w, err.Error(), http.StatusInternalServerError)
