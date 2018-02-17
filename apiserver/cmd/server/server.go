@@ -260,7 +260,7 @@ func (s *Server) start(cfg *config.Config, adminPasswd string) {
 
 	api.Use(&rest.IfMiddleware{
 		Condition: func(request *rest.Request) bool {
-			glog.Infof("remoteAddr: %s", request.Request.RemoteAddr)
+			glog.V(4).Infof("remoteAddr: %s", request.Request.RemoteAddr)
 
 			return strings.HasPrefix(request.URL.Path, s.prefix+"accounts") ||
 				strings.HasPrefix(request.URL.Path, s.prefix+"change_password") ||
@@ -488,11 +488,11 @@ func (s *Server) CheckToken(w rest.ResponseWriter, r *rest.Request) {
 	host := r.Request.FormValue("host")
 
 	// Log last activity for user
-	account, err := s.etcd.GetAccount(userId)
-	if err == nil {
-		account.LastLogin = time.Now().Unix()
-		s.etcd.PutAccount(account.Namespace, account, false)
-	}
+	//account, err := s.etcd.GetAccount(userId)
+	//if err == nil {
+	//	account.LastLogin = time.Now().Unix()
+	//	s.etcd.PutAccount(account.Namespace, account, false)
+	//}
 
 	// If host specified, see if it belongs to this namespace
 	if len(host) > 0 {
