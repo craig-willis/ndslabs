@@ -495,21 +495,22 @@ func (s *Server) CheckToken(w rest.ResponseWriter, r *rest.Request) {
 	//}
 
 	// If host specified, see if it belongs to this namespace
-	if len(host) > 0 {
-		ok, err := (s.checkIngress(userId, host))
-		if err != nil {
-			glog.Error(err)
-			rest.Error(w, err.Error(), http.StatusInternalServerError)
-		} else {
-			if ok || s.IsAdmin(r) {
-				w.WriteHeader(http.StatusOK)
-			} else {
-				w.WriteHeader(http.StatusForbidden)
-			}
-		}
-	} else {
-		w.WriteHeader(http.StatusOK)
-	}
+	//if len(host) > 0 {
+	//	ok, err := (s.checkIngress(userId, host))
+	//	if err != nil {
+	//		glog.Error(err)
+	//		rest.Error(w, err.Error(), http.StatusInternalServerError)
+	//	} else {
+	//		if ok || s.IsAdmin(r) {
+	//			w.WriteHeader(http.StatusOK)
+	//		} else {
+	//			w.WriteHeader(http.StatusForbidden)
+	//		}
+	//	}
+	//} else {
+	//	w.WriteHeader(http.StatusOK)
+	//}
+	w.WriteHeader(http.StatusOK)
 }
 
 func (s *Server) Logout(w rest.ResponseWriter, r *rest.Request) {
