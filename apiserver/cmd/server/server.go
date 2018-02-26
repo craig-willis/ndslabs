@@ -484,8 +484,8 @@ func Version(w rest.ResponseWriter, r *rest.Request) {
 
 func (s *Server) CheckToken(w rest.ResponseWriter, r *rest.Request) {
 	// Basic token validation is handled by jwt middleware
-	userId := s.getUser(r)
-	host := r.Request.FormValue("host")
+	//userId := s.getUser(r)
+	//host := r.Request.FormValue("host")
 
 	// Log last activity for user
 	//account, err := s.etcd.GetAccount(userId)
