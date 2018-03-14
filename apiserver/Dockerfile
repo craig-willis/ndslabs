@@ -27,5 +27,8 @@ RUN apt-get update -y -qq && \
 
 VOLUME /volumes
 
+RUN  useradd -m -s /bin/bash -N -u 1000 -g 100 workbench
+USER 1000
+
 ENTRYPOINT ["/entrypoint.sh"]
 CMD ["apiserver"]
